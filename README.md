@@ -20,7 +20,13 @@
 | <sub>[Souls-like Action Game Study](#03-souls-like-action-game-study)</sub> | <sub>액션 게임 전투와 몬스터 AI 학습</sub> | <sub>1명</sub> | <sub>2025.02 ~ 2025.06</sub> | <sub>Unity, C#, FSM, NavMesh</sub> |
 | <sub>[DeadLine](#04-deadline)</sub> | <sub>Photon PUN2 기반 멀티플레이 팀 프로젝트</sub> | <sub>4명</sub> | <sub>2024.07 ~ 2025.01</sub> | <sub>Unity, C#, Photon PUN2</sub> |
 
-<sub>[ToyProject](#05-toyproject) (간단한 Blender 활용 모델링 프로젝트)</sub>
+### Toy Projects
+
+| <sub>프로젝트</sub> | <sub>설명</sub> | <sub>기간</sub> | <sub>주요 기술</sub> |
+| --- | --- | --- | --- |
+| <sub>[AssetBridge](#toy-project-01-assetbridge)</sub> | <sub>AI 협업 기반 Unity 에셋 전달·승인 도구</sub> | <sub>2026.10 ~ 2026.11</sub> | <sub>C#, WPF<br>Google Drive API, Unity Editor</sub> |
+| <sub>[Howling Abyss Modeling](#toy-project-02-howling-abyss-modeling)</sub> | <sub>Blender 기본 모델링과 Unreal Engine 5 임포트 학습</sub> | <sub>2022.10 ~ 2023.12</sub> | <sub>Blender<br>Unreal Engine 5</sub> |
+
 <br>
 
 ## 01. Eternal Return Study Project
@@ -178,13 +184,70 @@
 
 <br>
 
-<a id="05-toyproject"></a>
+<a id="toy-project-01-assetbridge"></a>
 
-#### 5. ToyProject — 칼바람 나락 모델링
+## Toy Project 01. AssetBridge
+
+> 아트 작업자의 변경 에셋을 Google Drive로 제출하고, Unity 작업자가 미리보기와 승인 후 프로젝트에 반영하는 단방향 협업 도구입니다.
+
+- 개발 기간: 2026.10 ~ 2026.11
+- 개발 환경: C#, WPF, .NET 9, Google Drive API, Unity Editor
+- 담당: 요구사항 정의, 작업 흐름과 저장 구조 설계, 실제 사용자 검증 및 개선 방향 결정
+- AI 활용: 설계 컨텍스트를 기반으로 구현·리팩토링·오류 진단 보조
+- Repository: Private
+
+### 제작 배경
+
+ArcanaGambit에서 아트 작업자가 PNG·JPG 에셋을 전달할 때 Git과 LFS를 직접 다루게 하거나, 공유 폴더의 파일을 프로그래머가 수동으로 내려받아 Unity 프로젝트에 복사하는 과정을 줄이고자 시작했습니다.
+
+Git의 모든 기능을 다시 만드는 대신, **작업자 제출 → 프로그래머 검토 → 선택 승인**이라는 실제 작업에 필요한 흐름만 분리했습니다. 아트 작업자는 변경 파일과 작업 메모를 제출하고, 프로그래머는 Unity Editor 안에서 내용을 확인한 뒤 승인한 파일만 Assets 폴더에 반영하도록 범위를 정했습니다.
+
+<p align="center">
+  <img src="./docs/images/AssetBridge-01img.svg" width="900" alt="AssetBridge 에셋 제출 및 Unity 승인 흐름">
+</p>
+
+<p align="center">
+  <img src="./docs/images/AssetBridge-02img.png" width="400" alt="AssetBridge 작업자 제출 화면">
+  &nbsp;&nbsp;
+  <img src="./docs/images/AssetBridge-03img.png" width="400" alt="Unity AssetBridge 받은 제출함 화면">
+</p>
+
+<p align="center">
+  <sub>왼쪽: 아트 작업자의 변경 확인·제출 화면 &nbsp;&nbsp;|&nbsp;&nbsp; 오른쪽: Unity 작업자의 제출 검토·승인 화면</sub>
+</p>
+
+아트 작업자가 직접 작성하고 수정하는 로컬 폴더를 기준으로 변경 파일을 감지합니다. 선택한 파일은 기존 폴더의 상대 경로를 유지해 Google Drive에 제출되며, Unity 작업자가 승인하면 지정한 Assets 폴더 아래에 같은 분류 구조로 반영됩니다.
+
+### 핵심 설계
+
+- 로컬 작업 폴더를 SHA-256 기준으로 이전 제출 상태와 비교해 추가·수정·삭제 파일을 구분합니다.
+- 작업자가 선택한 변경 파일과 커밋 메시지만 Google Drive에 제출하고 로컬 상대 경로를 유지합니다.
+- Drive에는 최신 원본 한 벌과 커밋 메시지·변경 목록을 분리해 보관하여 바이너리 이전 버전이 계속 쌓이지 않도록 구성했습니다.
+- Unity의 받은 제출함은 기록을 조회하고, 선택한 이미지 한 장만 내려받아 미리보기를 제공합니다.
+- 승인한 파일만 지정한 Assets 폴더에 상대 경로대로 적용하며, 삭제는 별도 확인 후 반영합니다.
+
+### 설계 과정에서 고민한 점
+
+| <sub>문제</sub> | <sub>선택한 방법</sub> | <sub>결과</sub> |
+| --- | --- | --- |
+| <sub>아트 작업자에게 Git·LFS 사용을 요구하기 어려움</sub> | <sub>Drive를 전달 공간으로 사용하고 앱이 변경 기록을 관리</sub> | <sub>작업자는 파일 선택과 메시지 입력만으로 제출</sub> |
+| <sub>자동 동기화 시 검토하지 않은 에셋이 프로젝트에 반영될 수 있음</sub> | <sub>Unity Editor에 미리보기와 선택 승인 단계 추가</sub> | <sub>프로그래머가 확인한 파일만 Assets에 적용</sub> |
+| <sub>바이너리 파일을 커밋마다 보관하면 저장 공간이 계속 증가</sub> | <sub>최신 원본 한 벌과 텍스트 변경 이력을 분리</sub> | <sub>작업 기록은 유지하면서 원본 중복 저장을 줄임</sub> |
+| <sub>전송자와 수신자의 Drive 권한 범위가 달라 파일이 조회되지 않음</sub> | <sub>수신 권한을 분리하고 두 계정의 실제 제출·승인 흐름으로 검증</sub> | <sub>권한 부족을 빈 결과가 아닌 재연결 안내로 처리</sub> |
+
+### AI 협업 방식
+
+먼저 사용자 역할, 단방향 전달 흐름, 지원 파일 범위, Drive 저장 구조와 Unity 승인 조건을 직접 정리해 구현 기준으로 제공했습니다. 이후 AI를 통해 WPF 앱, Google Drive 연동과 Unity Editor 확장 구현을 보조받고, 실제 아트 작업자 계정과 Unity 작업자 계정으로 제출·수정·삭제·승인 과정을 반복 검증했습니다.
+
+구현 중에는 원본이 커밋마다 누적되는 구조를 **최신 원본 한 벌과 변경 이력을 분리하는 방식**으로 변경하고, 계정별 읽기 권한과 잘못된 하위 폴더 연결 문제를 실제 사용 과정에서 확인해 수정했습니다. 이를 통해 AI 활용에서도 요구사항과 완료 조건을 먼저 정의하고, 생성된 결과를 실제 환경에서 검증하는 과정이 중요하다는 점을 경험했습니다.
+
+<br>
+
+<a id="toy-project-02-howling-abyss-modeling"></a>
+
+## Toy Project 02. Howling Abyss Modeling
 
 <sub>간단한 Blender 모델링 활용 프로젝트</sub>
-
-### 칼바람 나락 모델링
 
 > Blender의 기본 모델링 작업과 Unreal Engine 5의 에셋 임포트 과정을 경험하기 위해 진행한 개인 학습 프로젝트입니다.
 
